@@ -1,5 +1,5 @@
 /* global api */
-class fren_Collins {
+class germ_Collins {
     constructor(options) {
         this.options = options;
         this.maxexample = 2;
