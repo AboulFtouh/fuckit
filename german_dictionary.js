@@ -1,5 +1,5 @@
 /* global api */
-class germ_Collins {
+class test_Collins {
     constructor(options) {
         this.options = options;
         this.maxexample = 2;
@@ -10,7 +10,7 @@ class germ_Collins {
         let locale = await api.locale();
         if (locale.indexOf('CN') != -1) return '柯林斯法英词典';
         if (locale.indexOf('TW') != -1) return '柯林斯法英词典';
-        return 'Collins GE->EN Dictionary';
+        return 'Collins FR->EN Dictionary';
     }
 
     setOptions(options) {
@@ -26,7 +26,7 @@ class germ_Collins {
     async findCollins(word) {
         if (!word) return null;
 
-        let base = 'https://www.collinsdictionary.com/dictionary/german-english/';
+        let base = 'https://www.collinsdictionary.com/dictionary/french-english/';
         let url = base + encodeURIComponent(word);
         let doc = '';
         try {
