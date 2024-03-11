@@ -1,111 +1,94 @@
-class deen_Dictionary {
-  constructor() {
-    // Your code starting here ...
-  }
-
-  async displayName() {
-    return 'German->English Dictionary';
-  }
-
-  async findTerm(word) {
-    this.word = word;
-    if (!word) return null;
-
-    let base = 'https://www.godic.net/dicts/prefix/';
-    let url = base + encodeURIComponent(word);
-    try {
-      let terms = JSON.parse(await api.fetch(url));
-      if (terms.length == 0) return null;
-      terms = terms.filter(term => term.value && term.recordid && term.recordtype != 'CG');
-      terms = terms.slice(0, 2); //max 2 results;
-      let queries = terms.map(term => this.findEudict(`https://www.godic.net/dicts/de/<span class="math-inline">\{<1\>term\.value\}?recordid\=</span>{term.recordid}`));
-      let results = await Promise.all(queries);
-      return [].concat(...results).filter(x => x);
-    } catch (err) {
-      return null;
-    }
-  }
-
-  removeTags(elem, name) {
-    let tags = elem.querySelectorAll(name);
-    tags.forEach(x => {
-      x.outerHTML = '';
-    });
-  }
-
-  async findEudict(url) {
-    let notes = [];
-
-    function T(node) {
-      if (!node) return '';
-      else return node.innerText.trim();
+/* global api */
+class fren_Collins {
+    constructor(options) {
+        this.options = options;
+        this.maxexample = 2;
+        this.word = '';
     }
 
-    let doc = '';
-    try {
-      let data = await api.fetch(url);
-      let parser = new DOMParser();
-      doc = parser.parseFromString(data, 'text/html');
-    } catch (err) {
-      return [];
+    async displayName() {
+        let locale = await api.locale();
+        if (locale.indexOf('CN') != -1) return '柯林斯法英词典';
+        if (locale.indexOf('TW') != -1) return '柯林斯法英词典';
+        return 'Collins GE->EN Dictionary';
     }
 
-    let headsection = doc.querySelector('#dict-body>#exp-head');
-    if (!headsection) return null;
-    let expression = T(headsection.querySelector('.word'));
-    if (!expression) return null;
-    let reading = T(headsection.querySelector('.Phonitic'));
-
-    let extrainfo = '';
-    let cets = headsection.querySelectorAll('.tag');
-    for (const cet of cets) {
-      extrainfo += `<span class="cet">${T(cet)}</span>`;
+    setOptions(options) {
+        this.options = options;
+        this.maxexample = options.maxexample;
     }
 
-    let audios = [];
-    try {
-      audios[0] = 'https://api.frdic.com/api/v2/speech/speakweb?' + headsection.querySelector('.voice-js').dataset.rel;
-    } catch (err) {
-      audios = [];
+    async findTerm(word) {
+        this.word = word;
+        return await this.findCollins(word);
     }
 
-    let content = doc.querySelector('#ExpFCChild') || '';
-    if (!content) return [];
-    this.removeTags(content, 'script');
-    this.removeTags(content, '#word-thumbnail-image');
-    this.removeTags(content, '[style]');
-    this.removeTags(content.parentNode, '#ExpFCChild>br');
-    let anchor = content.querySelector('a');
-    if (anchor) {
-      let link = 'https://www.godic.net' + anchor.getAttribute('href');
-      anchor.setAttribute('href', link);
-      anchor.setAttribute('target', '_blank');
+    async findCollins(word) {
+        if (!word) return null;
+
+        let base = 'https://www.collinsdictionary.com/dictionary/german-english/';
+        let url = base + encodeURIComponent(word);
+        let doc = '';
+        try {
+            let data = await api.fetch(url);
+            let parser = new DOMParser();
+            doc = parser.parseFromString(data, 'text/html');
+        } catch (err) {
+            return null;
+        }
+
+        let content = doc.querySelector('.content') || '';
+        if (!content) return null;
+        let css = this.renderCSS();
+        return css + content.innerHTML;
     }
-    content.innerHTML = content.innerHTML.replace(/<p class="exp">(.+?)<\/p>/gi, '<span class="exp">$1</span>');
-    content.innerHTML = content.innerHTML.replace(/<span class="exp"><br>/gi, '<span class="exp">');
-    content.innerHTML = content.innerHTML.replace(/<span class="eg"><br>/gi, '<span class="eg">');
 
-    let css = this.renderCSS();
-    notes.push({
-      css,
-      expression,
-      reading,
-      extrainfo,
-      definitions: [content.innerHTML],
-      audios
-    });
-    return notes;
-  }
+    renderCSS() {
+        let css = `
+            <style>
+                .copyright{
+                    display:none;
+                }
+                .orth {
+                    font-size: 100%;
+                    font-weight: bold;
+                }
+                .quote {
+                    font-style: normal;
+                    color: #1683be;
+                }
+                .colloc {
+                    font-style: italic;
+                    font-weight: normal;
+                }
+                .sense {
+                    border: 1px solid;
+                    border-color: #e5e6e9 #dfe0e4 #d0d1d5;
+                    border-radius: 3px;
+                    padding: 5px;
+                    margin-top: 3px;
+                }
+                .sense .re {
+                    font-size: 100%;
+                    margin-left: 0;
+                }
+                .sense .sense {
+                    border: initial;
+                    border-color: initial;
+                    border-radius: initial;
+                    padding: initial;
+                    margin-top: initial;
+                }
+                a {
+                    color: #000;
+                    text-decoration: none;
+                }
+                * {
+                    word-wrap: break-word;
+                    box-sizing: border-box;
+                }
+            </style>`;
 
-  renderCSS() {
-    let css = `
-      <style>
-        span.eg,
-        span.exp,
-        span.cara
-        {display:block;}
-        .cara {color: #1C6FB8;font-weight: bold;}
-        .eg {color: #238E68;}
-        #phrase I {color: #009933;font-weight: bold;}
-      </style>`;
-    
+        return css;
+    }
+}
